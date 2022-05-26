@@ -36,7 +36,36 @@ async function run() {
         const toolCollection = client.db('paint-pro').collection('tools')
         const orderCollection = client.db('paint-pro').collection('orders')
         const userCollection = client.db('paint-pro').collection('users')
+        const reviewCollection = client.db('paint-pro').collection('reviews')
 
+        const verifyAdmin = async (req, res, next) => {
+            const requester = req.decoded.email
+            const requesterAccount = await userCollection.findOne({ email: requester })
+            if (requesterAccount.role === 'admin') {
+                next()
+            }
+            else {
+                res.status(403).send({ message: 'Forbidden' })
+            }
+        }
+
+        app.put('/user/admin/:email', verifyJWT, verifyAdmin, async (req, res) => {
+            const email = req.params.email
+            const filter = { email: email }
+            const updateDoc = {
+                $set: { role: 'admin' }
+            }
+            const result = await userCollection.updateOne(filter, updateDoc);
+            res.send(result)
+        })
+
+        app.get('/admin/:email', async (req, res) => {
+            const email = req.params.email
+            const user = await userCollection.findOne({ email: email })
+            const isAdmin = user.role === 'admin'
+            console.log(isAdmin)
+            res.send({ admin: isAdmin })
+        })
 
         app.put('/user/:email', async (req, res) => {
             const email = req.params.email
@@ -52,6 +81,29 @@ async function run() {
             res.send({ result, token })
 
         })
+        app.put('/user/update/:email', async (req, res) => {
+            const email = req.params.email
+            const user = req.body
+            const filter = { email: email }
+            const options = { upsert: true };
+            const updateDoc = {
+                $set: user
+            }
+            const result = await userCollection.updateOne(filter, updateDoc, options);
+            res.send(result)
+
+        })
+
+        app.get('/user', verifyJWT, async (req, res) => {
+            const users = await userCollection.find().toArray()
+            res.send(users)
+        })
+
+        app.post('/tool', verifyJWT, verifyAdmin, async (req, res) => {
+            const tool = req.body
+            const result = await toolCollection.insertOne(tool)
+            res.send(result)
+        })
 
         app.get('/tool', async (req, res) => {
             const tools = await toolCollection.find().toArray()
@@ -63,8 +115,15 @@ async function run() {
             const tool = await toolCollection.findOne(query)
             res.send(tool)
         })
+        app.delete('/tool/:id', verifyJWT, verifyAdmin, async (req, res) => {
+            const id = req.params.id
+            const query = { _id: ObjectId(id) }
+            const result = await toolCollection.deleteOne(query)
+            res.send(result)
 
-        app.post('/order', async (req, res) => {
+        })
+
+        app.post('/order', verifyJWT, async (req, res) => {
             const order = req.body
             const result = await orderCollection.insertOne(order)
             res.send(result)
@@ -89,6 +148,18 @@ async function run() {
             const result = await orderCollection.deleteOne(query)
             res.send(result)
         })
+
+        app.post('/review', verifyJWT, async (req, res) => {
+            const review = req.body
+            const result = await reviewCollection.insertOne(review)
+            res.send(result)
+        })
+
+        app.get('/review', async (req, res) => {
+            const reviews = await reviewCollection.find().toArray()
+            res.send(reviews)
+        })
+
 
 
     }
