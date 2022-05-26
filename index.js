@@ -103,6 +103,13 @@ async function run() {
             res.send(users)
         })
 
+        app.get('/user/:email', verifyJWT, async (req, res) => {
+            const email = req.params.email
+            const query = { email: email }
+            const user = await userCollection.findOne(query)
+            res.send(user)
+        })
+
         app.post('/tool', verifyJWT, verifyAdmin, async (req, res) => {
             const tool = req.body
             const result = await toolCollection.insertOne(tool)
