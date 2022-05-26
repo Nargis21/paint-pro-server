@@ -3,6 +3,8 @@ const cors = require('cors');
 require('dotenv').config()
 const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+
 
 const app = express()
 const port = process.env.PORT || 5000;
@@ -37,6 +39,8 @@ async function run() {
         const orderCollection = client.db('paint-pro').collection('orders')
         const userCollection = client.db('paint-pro').collection('users')
         const reviewCollection = client.db('paint-pro').collection('reviews')
+        const paymentCollection = client.db('paint-pro').collection('payments')
+
 
         const verifyAdmin = async (req, res, next) => {
             const requester = req.decoded.email
@@ -129,6 +133,18 @@ async function run() {
             res.send(result)
         })
 
+        app.get('/orders', verifyJWT, verifyAdmin, async (req, res) => {
+            const orders = await orderCollection.find().toArray()
+            res.send(orders)
+        })
+
+        app.get('/order/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id
+            const query = { _id: ObjectId(id) }
+            const order = await orderCollection.findOne(query)
+            res.send(order)
+        })
+
         app.get('/order', verifyJWT, async (req, res) => {
             const userEmail = req.query.email
             const decodedEmail = req.decoded.email
@@ -140,6 +156,34 @@ async function run() {
             else {
                 return res.status(403).send({ message: 'Forbidden access' })
             }
+        })
+
+        app.patch('/order/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id
+            const payment = req.body
+            const filter = { _id: ObjectId(id) }
+            const updatedDoc = {
+                $set: {
+                    paid: true,
+                    status: 'Pending',
+                    transactionId: payment.transactionId
+                }
+            }
+            const result = await paymentCollection.insertOne(payment)
+            const updatedOrder = await orderCollection.updateOne(filter, updatedDoc)
+            res.send(updatedOrder)
+        })
+
+        app.patch('/orders/:id', verifyJWT, async (req, res) => {
+            const id = req.params.id
+            const filter = { _id: ObjectId(id) }
+            const updatedDoc = {
+                $set: {
+                    status: 'Shipped',
+                }
+            }
+            const updatedOrder = await orderCollection.updateOne(filter, updatedDoc)
+            res.send(updatedOrder)
         })
 
         app.delete('/order/:id', verifyJWT, async (req, res) => {
@@ -160,6 +204,19 @@ async function run() {
             res.send(reviews)
         })
 
+        app.post('/create-payment-intent', verifyJWT, async (req, res) => {
+            const service = req.body
+            const price = service.totalPrice
+            const amount = price * 100
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: "usd",
+                payment_method_types: ['card']
+            });
+            res.send({
+                clientSecret: paymentIntent.client_secret,
+            });
+        })
 
 
     }
