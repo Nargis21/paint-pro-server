@@ -5,7 +5,6 @@ const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
-
 const app = express()
 const port = process.env.PORT || 5000;
 
@@ -28,7 +27,6 @@ function verifyJWT(req, res, next) {
         req.decoded = decoded
         next()
     });
-
 }
 
 async function run() {
@@ -120,12 +118,14 @@ async function run() {
             const tools = await toolCollection.find().toArray()
             res.send(tools)
         })
+
         app.get('/tool/:id', async (req, res) => {
             const id = req.params.id
             const query = { _id: ObjectId(id) }
             const tool = await toolCollection.findOne(query)
             res.send(tool)
         })
+
         app.delete('/tool/:id', verifyJWT, verifyAdmin, async (req, res) => {
             const id = req.params.id
             const query = { _id: ObjectId(id) }
@@ -224,16 +224,12 @@ async function run() {
                 clientSecret: paymentIntent.client_secret,
             });
         })
-
-
     }
     finally {
-
     }
 }
 
 run().catch(console.dir)
-
 
 app.get('/', (req, res) => {
     res.send('Hello From Paint Pro!')
