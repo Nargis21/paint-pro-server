@@ -31,7 +31,7 @@ function verifyJWT(req, res, next) {
 
 async function run() {
     try {
-        await client.connect()
+        client.connect()
         console.log('DB Connected!')
         const toolCollection = client.db('paint-pro').collection('tools')
         const orderCollection = client.db('paint-pro').collection('orders')
